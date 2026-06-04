@@ -121,7 +121,7 @@ tr:nth-child(even) td{background:#f9f6f0}
       <div class="section-desc">Wähle bis zu 3 weitere Fotos für kleinere Drucke.</div>
       <div class="photo-grid" id="grid-small"></div>
       <div class="section-label">Dieses Foto möchte ich auch vergrößern</div>
-      <div class="section-desc">Markiere Fotos, die du zusätzlich vergrößert sehen möchtest – groß oder klein.</div>
+      <div class="section-desc">Markiere Fotos zusätzlich – groß oder klein.</div>
       <div class="photo-grid" id="grid-extra"></div>
       <div class="nav-btns">
         <button class="btn btn-outline" id="btn-prev" onclick="navigate(-1)">← Zurück</button>
@@ -180,11 +180,30 @@ function initVotes() {
     votes[g] = { large: null, small: [], extraLarge: [], extraSmall: [] };
 }
 
-function startVoting() {
+async function startVoting() {
   const inp = document.getElementById('voter-input');
   if (!inp.value.trim()) { document.getElementById('start-error').style.display='block'; return; }
   voterName = inp.value.trim();
   initVotes();
+
+  // Prüfen ob bereits eine Abstimmung gespeichert ist
+  try {
+    const res = await fetch(API_URL+'/latest', { headers: {'X-Master-Key': JSONBIN_KEY} });
+    const data = await res.json();
+    const allVotes = (data.record||{}).votes||[];
+    const existing = allVotes.find(r => r.voter === voterName);
+    if (existing) {
+      const resume = confirm('Es gibt bereits eine gespeicherte Abstimmung von "'+voterName+'".\n\nMöchtest du sie laden und bearbeiten?');
+      if (resume) {
+        votes = existing.votes;
+        // Fehlende Gruppen auffüllen
+        for (const g of GROUP_NAMES)
+          if (!votes[g]) votes[g] = { large: null, small: [], extraLarge: [], extraSmall: [] };
+        toast('Deine frühere Auswahl wurde geladen \u2713', '#2a7a2a');
+      }
+    }
+  } catch(e) { /* ignorieren, frisch starten */ }
+
   document.getElementById('voter-display').textContent = voterName;
   document.getElementById('group-count').textContent = GROUP_NAMES.length;
   buildSidebar();
@@ -228,9 +247,7 @@ function renderGroup(idx) {
   const files = GROUPS[g];
   const v = votes[g];
   updateSidebar();
-  const done = GROUP_NAMES.filter(g => votes[g].large).length;
-  document.getElementById('progress-bar').style.width = (done/GROUP_NAMES.length*100)+'%';
-  document.getElementById('progress-text').textContent = done+' von '+GROUP_NAMES.length+' Gruppen bearbeitet';
+  updateProgress();
   document.getElementById('grp-title').textContent = g;
   document.getElementById('grp-sub').textContent = files.length+' Foto'+(files.length!==1?'s':'')+' \u00b7 Gruppe '+(idx+1)+' von '+GROUP_NAMES.length;
   renderGrid('grid-large', files, v, 'large');
@@ -241,12 +258,16 @@ function renderGroup(idx) {
   document.getElementById('btn-next').style.display = isLast ? 'none' : '';
   document.getElementById('btn-submit').style.display = isLast ? '' : 'none';
   document.getElementById('submit-warn').style.display = 'none';
-  // KEIN scrollTop reset - Seite bleibt an Position
+}
+
+function updateProgress() {
+  const done = GROUP_NAMES.filter(g => votes[g].large).length;
+  document.getElementById('progress-bar').style.width = (done/GROUP_NAMES.length*100)+'%';
+  document.getElementById('progress-text').textContent = done+' von '+GROUP_NAMES.length+' Gruppen bearbeitet';
 }
 
 function renderGrid(gridId, files, v, mode) {
   const grid = document.getElementById(gridId);
-  // Scrollposition merken
   const scrollY = window.scrollY;
   grid.innerHTML = '';
   const hasLarge = v.large !== null;
@@ -255,7 +276,6 @@ function renderGrid(gridId, files, v, mode) {
     const isSelSmall   = mode==='small' && v.small.includes(fname);
     const isSelExLarge = mode==='extra' && v.extraLarge.includes(fname);
     const isSelExSmall = mode==='extra' && v.extraSmall.includes(fname);
-    // Dimmen: bei large wenn ein anderes gewählt; bei small wenn 3 erreicht
     const isDimmed = (mode==='large' && hasLarge && !isSelLarge)
                   || (mode==='small' && !isSelSmall && v.small.length>=3);
 
@@ -315,17 +335,14 @@ function renderGrid(gridId, files, v, mode) {
     if (mode==='small' && !isDimmed) card.onclick = () => toggleSmall(fname);
     grid.appendChild(card);
   });
-  // Scrollposition wiederherstellen
   window.scrollTo(0, scrollY);
 }
 
 function toggleLarge(fname) {
   const g = GROUP_NAMES[currentIdx];
   votes[g].large = votes[g].large===fname ? null : fname;
-  // Nur Grids neu rendern, nicht ganze Gruppe (kein Scroll-Reset)
-  const v = votes[g];
-  renderGrid('grid-large', GROUPS[g], v, 'large');
-  renderGrid('grid-small', GROUPS[g], v, 'small');
+  renderGrid('grid-large', GROUPS[g], votes[g], 'large');
+  renderGrid('grid-small', GROUPS[g], votes[g], 'small');
   updateSidebar();
   updateProgress();
 }
@@ -347,12 +364,6 @@ function toggleExtra(fname, size) {
   renderGrid('grid-extra', GROUPS[g], votes[g], 'extra');
 }
 
-function updateProgress() {
-  const done = GROUP_NAMES.filter(g => votes[g].large).length;
-  document.getElementById('progress-bar').style.width = (done/GROUP_NAMES.length*100)+'%';
-  document.getElementById('progress-text').textContent = done+' von '+GROUP_NAMES.length+' Gruppen bearbeitet';
-}
-
 function navigate(dir) {
   currentIdx += dir;
   renderGroup(currentIdx);
@@ -360,10 +371,9 @@ function navigate(dir) {
 }
 
 async function submitVotes() {
-  // Warnung wenn manche Gruppen noch keine große Auswahl haben
   const missing = GROUP_NAMES.filter(g => !votes[g].large);
   if (missing.length > 0) {
-    const ok = confirm(missing.length+' Gruppe(n) haben noch keine gro\u00dfe Vergr\u00f6\u00dferung gew\u00e4hlt:\n'+missing.join(', ')+'\n\nTrotzdem absenden?');
+    const ok = confirm(missing.length+' Gruppe(n) ohne gro\u00dfe Vergr\u00f6\u00dferung:\n'+missing.join(', ')+'\n\nTrotzdem absenden?');
     if (!ok) return;
   }
   const btn = document.getElementById('btn-submit');
@@ -391,6 +401,27 @@ async function submitVotes() {
   }
 }
 
+async function deleteVoter(name) {
+  const ok = confirm('Soll die gesamte Abstimmung von "'+name+'" wirklich unwiderruflich gel\u00f6scht werden?');
+  if (!ok) return;
+  try {
+    const getRes = await fetch(API_URL+'/latest', { headers: {'X-Master-Key': JSONBIN_KEY} });
+    const getData = await getRes.json();
+    const allVotes = (getData.record||{}).votes||[];
+    const filtered = allVotes.filter(r => r.voter!==name);
+    const putRes = await fetch(API_URL, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
+      body: JSON.stringify({votes: filtered})
+    });
+    if (!putRes.ok) throw new Error('HTTP '+putRes.status);
+    toast('Abstimmung von "'+name+'" gel\u00f6scht', '#c0392b');
+    showResults(); // Auswertung neu laden
+  } catch(e) {
+    toast('Fehler beim L\u00f6schen: '+e.message, '#c0392b');
+  }
+}
+
 async function showResults() {
   document.getElementById('results-overlay').style.display = 'flex';
   document.getElementById('results-content').innerHTML = '<p style="color:#888;font-size:0.85rem">Lade \u2026</p>';
@@ -399,7 +430,7 @@ async function showResults() {
     const data = await res.json();
     const allVotes = (data.record||{}).votes||[];
     if (!allVotes.length) {
-      document.getElementById('results-content').innerHTML = '<p style="color:#888">Noch keine Abstimmungen.</p>';
+      document.getElementById('results-content').innerHTML = '<p style="color:#888">Noch keine Abstimmungen gespeichert.</p>';
       return;
     }
     const tally = {};
@@ -413,7 +444,22 @@ async function showResults() {
       }
     }
     const voters = [...new Set(allVotes.map(r=>r.voter))];
-    let html = '<p style="font-size:0.78rem;color:#666;margin-bottom:0.8rem">'+allVotes.length+' Abstimmung(en) von: <strong>'+voters.join(', ')+'</strong></p>';
+
+    // Voter-Liste mit Löschen-Button
+    let html = '<div style="margin-bottom:1rem;padding:0.8rem;background:#f5f0e8;border-radius:6px">';
+    html += '<div style="font-size:0.75rem;color:#555;margin-bottom:0.5rem;font-weight:600">Abstimmende:</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">';
+    for (const v of voters) {
+      const ts = allVotes.find(r=>r.voter===v)?.timestamp;
+      const date = ts ? new Date(ts).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      html += '<div style="display:flex;align-items:center;gap:0.3rem;background:#fff;border:1px solid #ddd;border-radius:4px;padding:0.3rem 0.5rem">';
+      html += '<span style="font-size:0.75rem;font-weight:600">'+v+'</span>';
+      if (date) html += '<span style="font-size:0.65rem;color:#999">'+date+'</span>';
+      html += '<button onclick="deleteVoter(\''+v.replace(/'/g,"\\'")+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:3px;font-size:0.6rem;padding:1px 5px;cursor:pointer;font-family:inherit">l\u00f6schen</button>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+
     html += '<table><thead><tr><th>Gruppe</th><th>Gro\u00df (A1/A2)</th><th>Klein (A3/A4)</th><th>Auch vergr\u00f6\u00dfern</th></tr></thead><tbody>';
     for (const g of GROUP_NAMES) {
       const t = tally[g]||{large:{},small:{},extraLarge:{},extraSmall:{}};
@@ -424,7 +470,8 @@ async function showResults() {
       ].join(' ')||'\u2013';
       html+='<tr><td><strong>'+g+'</strong></td><td>'+fmt(t.large,'vi-large')+'</td><td>'+fmt(t.small,'vi-small')+'</td><td>'+ex+'</td></tr>';
     }
-    html+='</tbody></table><div style="margin-top:1rem"><button class="btn btn-dark" style="font-size:0.75rem" onclick="exportResults()">Als JSON exportieren</button></div>';
+    html+='</tbody></table>';
+    html+='<div style="margin-top:1rem"><button class="btn btn-dark" style="font-size:0.75rem" onclick="exportResults()">Als JSON exportieren</button></div>';
     document.getElementById('results-content').innerHTML = html;
     window._allVotes = allVotes;
   } catch(e) {

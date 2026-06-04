@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="de"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kleinkunst · Aufsteller-Planer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: Georgia, serif; background: #f5f0eb; display: flex; flex-direction: column; padding: 14px; gap: 10px; overflow: hidden; }
+
+  .topbar { display: flex; align-items: baseline; gap: 12px; flex-shrink: 0; }
+  h1 { font-size: 1.25rem; color: #1a1a1a; letter-spacing: -0.5px; }
+  .subtitle { font-size: 0.72rem; color: #888; }
+
+  .layout { display: flex; gap: 14px; flex: 1; min-height: 0; }
+
+  /* Toolbar */
+  .toolbar { width: 168px; flex-shrink: 0; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; padding-right: 3px; }
+  .toolbar::-webkit-scrollbar { width: 3px; }
+  .toolbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+  .panel { background: #fff; border-radius: 8px; padding: 11px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); flex-shrink: 0; }
+  .panel-title { font-size: 0.63rem; font-weight: 700; color: #bbb; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 9px; }
+
+  .orient-toggle { display: flex; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; margin-bottom: 9px; }
+  .orient-toggle button { flex: 1; padding: 5px; font-size: 0.7rem; border: none; cursor: pointer; font-family: Georgia, serif; }
+  .orient-toggle button.active { background: #1a1a1a; color: #fff; }
+  .orient-toggle button:not(.active) { background: #fff; color: #666; }
+
+  .fmt-btn { display: block; width: 100%; margin-bottom: 6px; padding: 6px 9px; border-radius: 6px; cursor: pointer; font-family: Georgia, serif; text-align: left; font-size: 0.75rem; font-weight: 600; border-width: 2px; border-style: solid; }
+  .fmt-btn .fmt-name { font-size: 0.92rem; }
+  .fmt-btn .fmt-size { display: block; font-size: 0.6rem; font-weight: 400; margin-top: 1px; }
+
+  .action-btn { display: block; width: 100%; margin-bottom: 6px; padding: 6px; border-radius: 6px; cursor: pointer; font-family: Georgia, serif; font-size: 0.72rem; border: 1px solid #ddd; background: #fff; }
+  .delete-btn { border-color: #fca5a5; background: #fef2f2; color: #dc2626; }
+  #selection-panel { display: none; }
+
+  /* Rotation controls */
+  .rot-row { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+  .rot-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: Georgia, serif; }
+  .rot-btn:hover { background: #f5f5f5; }
+  .rot-slider { flex: 1; cursor: pointer; accent-color: #1a1a1a; min-width: 0; }
+  .rot-display { font-size: 0.68rem; color: #888; text-align: center; margin-bottom: 6px; }
+  .rot-reset { font-size: 0.65rem; color: #aaa; background: none; border: none; cursor: pointer; text-decoration: underline; font-family: Georgia, serif; padding: 0; display: block; margin-bottom: 6px; }
+
+  .legend-item { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-size: 0.66rem; color: #666; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  .swatch-work { background: #fff; border: 1px solid #aaa; }
+  .swatch-blocked { background: #f0f0f0; border: 1px solid #ccc; }
+  .swatch-custom { background: #f3e8ff; border: 1px solid #a855f7; }
+
+  .custom-name-input { width: 100%; padding: 4px 5px; border: 1px solid #ddd; border-radius: 5px; font-family: Georgia, serif; font-size: 0.7rem; margin-bottom: 6px; }
+  .custom-name-input:focus { outline: none; border-color: #a855f7; }
+  .custom-row { display: flex; gap: 4px; margin-bottom: 5px; align-items: center; }
+  .custom-row label { font-size: 0.62rem; color: #999; width: 14px; flex-shrink: 0; }
+  .custom-input { flex: 1; padding: 4px 5px; border: 1px solid #ddd; border-radius: 5px; font-family: Georgia, serif; font-size: 0.7rem; min-width: 0; }
+  .custom-input:focus { outline: none; border-color: #a855f7; }
+  .add-custom-btn { display: block; width: 100%; padding: 6px; border-radius: 6px; cursor: pointer; font-family: Georgia, serif; font-size: 0.72rem; font-weight: 600; border: 2px solid #a855f7; background: #f3e8ff; color: #7e22ce; }
+  .custom-error { font-size: 0.62rem; color: #dc2626; margin-top: 3px; display: none; }
+
+  .saved-fmt { display: flex; align-items: center; justify-content: space-between; padding: 4px 7px; margin-bottom: 4px; border-radius: 5px; border: 1.5px solid #a855f7; background: #f3e8ff; cursor: pointer; }
+  .saved-fmt-name { font-size: 0.7rem; font-weight: 600; color: #7e22ce; }
+  .saved-fmt-size { font-size: 0.58rem; color: #9333ea; }
+  .saved-fmt-del { font-size: 0.65rem; color: #a855f7; background: none; border: none; cursor: pointer; padding: 0 2px; }
+  #saved-formats-list { margin-top: 5px; }
+
+  /* Board area */
+  .board-area { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .board-scroll { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; width: 100%; padding: 8px; min-height: 0; }
+
+  /* The full aufsteller wrapper (includes hint strips) */
+  .aufsteller-wrap { position: relative; flex-shrink: 0; display: flex; flex-direction: column; }
+
+  /* Hint strips for restricted zones */
+  .hint-strip {
+    width: 100%;
+    background: #f7f7f7;
+    border: 2px solid #e0e0e0;
+    display: flex; align-items: center; justify-content: center;
+    color: #ccc; font-size: 0.58rem; letter-spacing: 0.5px;
+    font-family: Georgia, serif; flex-shrink: 0;
+  }
+  .hint-strip.top { border-bottom: none; border-radius: 4px 4px 0 0; }
+  .hint-strip.bottom { border-top: 1px dashed #ddd; border-radius: 0 0 4px 4px; }
+
+  /* Work zone board */
+  #board {
+    position: relative;
+    background: #fff;
+    border-left: 2px solid #1a1a1a;
+    border-right: 2px solid #1a1a1a;
+    overflow: hidden;
+    user-select: none;
+    cursor: default;
+    flex-shrink: 0;
+  }
+  /* Top border only on work zone top, bottom only at work zone bottom */
+  #board.top-open { border-top: 1px dashed #bbb; }
+  #board.bottom-open { border-bottom: 1px dashed #bbb; }
+
+  /* Outer frame lines */
+  .frame-top { border-top: 3px solid #1a1a1a !important; border-radius: 4px 4px 0 0; }
+  .frame-bottom-strip { border-bottom: 3px solid #1a1a1a; border-radius: 0 0 4px 4px; }
+
+  /* Ruler */
+  .ruler-mark { position: absolute; right: 0; border-top: 1px solid #eee; pointer-events: none; z-index: 1; width: 32px; }
+  .ruler-label { font-size: 0.52rem; color: #ccc; position: absolute; right: 3px; top: -8px; }
+  .ruler-mark.major { border-top-color: #ccc; }
+  .ruler-mark.major .ruler-label { color: #aaa; }
+
+  .dim-labels { font-size: 0.68rem; color: #aaa; margin-top: 5px; flex-shrink: 0; text-align: center; }
+
+  /* Placeholders */
+  .placeholder {
+    position: absolute; border-radius: 2px; cursor: grab;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; z-index: 2; border-width: 1.5px; border-style: solid;
+  }
+  .placeholder.selected { z-index: 10; border-width: 2.5px; }
+  .placeholder svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.2; }
+  .placeholder .ph-label { position: relative; z-index: 1; font-weight: 700; font-family: Georgia,serif; text-align: center; padding: 0 3px; word-break: break-word; line-height: 1.2; }
+  .placeholder .ph-size { position: relative; z-index: 1; opacity: 0.75; }
+
+  /* Info panel */
+  .info-panel { width: 148px; flex-shrink: 0; overflow-y: auto; }
+  .info-panel::-webkit-scrollbar { width: 3px; }
+  .info-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+  .ph-item { padding: 5px 7px; margin-bottom: 5px; border-radius: 4px; border: 1.5px solid #e5e5e5; background: #fafafa; cursor: pointer; }
+  .ph-item-title { font-size: 0.73rem; font-weight: 700; }
+  .ph-item-orient { font-size: 0.6rem; color: #aaa; margin-left: 4px; }
+  .ph-item-coords { font-size: 0.58rem; color: #bbb; margin-top: 1px; }
+  .empty-note { font-size: 0.68rem; color: #bbb; font-style: italic; }
+
+  /* Hilfe-Overlay */
+  .hilfe-btn {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1.5px solid #c9a84c;
+    background: #fff;
+    color: #c9a84c;
+    font-family: Georgia, serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all 0.15s;
+  }
+  .hilfe-btn:hover { background: #c9a84c; color: #fff; }
+  .hilfe-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .hilfe-box {
+    background: #fff;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 620px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    font-family: Georgia, serif;
+  }
+  .hilfe-box h2 { font-size: 1.2rem; color: #1a1a2e; margin-bottom: 1rem; }
+  .hilfe-box h3 { font-size: 0.88rem; color: #c9a84c; margin: 1.2rem 0 0.4rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .hilfe-box p { font-size: 0.82rem; color: #444; line-height: 1.7; margin-bottom: 0.6rem; }
+  .hilfe-box ul { padding-left: 1.2rem; margin-bottom: 0.6rem; }
+  .hilfe-box li { font-size: 0.82rem; color: #444; line-height: 1.7; margin-bottom: 0.3rem; }
+  .hilfe-box .format-tag { display: inline-block; border-radius: 3px; padding: 1px 7px; font-size: 0.75rem; font-weight: 700; margin-right: 4px; }
+  .hilfe-close { margin-top: 1.5rem; padding: 0.5rem 1.5rem; background: #1a1a2e; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-family: Georgia, serif; font-size: 0.82rem; }
+  .hilfe-close:hover { background: #333; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Kleinkunst · Aufsteller-Planer</h1>
+  <span class="subtitle">120 × 240 cm · Nutzzone: 20–160 cm von oben</span>
+  <button class="hilfe-btn" onclick="document.getElementById('hilfe-overlay').style.display='flex'">? Hilfe</button>
+</div>
+
+<div class="layout">
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="panel">
+      <div class="panel-title">DIN-Format</div>
+      <div class="orient-toggle">
+        <button id="btn-hoch" class="active" onclick="setLandscape(false)">Hoch</button>
+        <button id="btn-quer" onclick="setLandscape(true)">Quer</button>
+      </div>
+      <button class="fmt-btn" onclick="addDIN('A0')" style="border-color:#2563eb;background:#d4e4f7;color:#1d4ed8">
+        <span class="fmt-name">A0</span><span class="fmt-size" id="sz-A0">84 × 119 cm</span>
+      </button>
+      <button class="fmt-btn" onclick="addDIN('A1')" style="border-color:#059669;background:#d1fae5;color:#065f46">
+        <span class="fmt-name">A1</span><span class="fmt-size" id="sz-A1">59 × 84 cm</span>
+      </button>
+      <button class="fmt-btn" onclick="addDIN('A2')" style="border-color:#d97706;background:#fef3c7;color:#92400e">
+        <span class="fmt-name">A2</span><span class="fmt-size" id="sz-A2">42 × 59 cm</span>
+      </button>
+      <button class="fmt-btn" onclick="addDIN('A3')" style="border-color:#db2777;background:#fce7f3;color:#9d174d">
+        <span class="fmt-name">A3</span><span class="fmt-size" id="sz-A3">30 × 42 cm</span>
+      </button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Eigenes Format</div>
+      <input class="custom-name-input" id="custom-name" type="text" placeholder="Name (z.B. Programmheft)" maxlength="20">
+      <div class="custom-row">
+        <label>B</label>
+        <input class="custom-input" id="custom-w" type="number" min="1" max="120" placeholder="cm">
+        <span style="font-size:0.62rem;color:#bbb">cm</span>
+      </div>
+      <div class="custom-row">
+        <label>H</label>
+        <input class="custom-input" id="custom-h" type="number" min="1" max="240" placeholder="cm">
+        <span style="font-size:0.62rem;color:#bbb">cm</span>
+      </div>
+      <div class="custom-error" id="custom-error">Bitte Name, Breite und Höhe angeben.</div>
+      <button class="add-custom-btn" onclick="addCustomFormat()">+ Hinzufügen</button>
+      <div id="saved-formats-list"></div>
+    </div>
+
+    <div class="panel" id="selection-panel" style="display: none;">
+      <div class="panel-title">Auswahl</div>
+      <button class="action-btn" onclick="rotateSelected()">↻ 90° drehen</button>
+      <div style="font-size:0.63rem;color:#bbb;margin-bottom:5px;margin-top:2px;letter-spacing:0.5px;text-transform:uppercase;font-weight:700;">Schräg stellen</div>
+      <div class="rot-display" id="rot-display">12°</div>
+      <div class="rot-row">
+        <button class="rot-btn" onclick="adjustRotation(-5)">−</button>
+        <input class="rot-slider" type="range" min="-45" max="45" value="12" id="rot-slider" oninput="setRotation(parseInt(this.value))">
+        <button class="rot-btn" onclick="adjustRotation(5)">+</button>
+      </div>
+      <button class="rot-reset" onclick="setRotation(0)">zurücksetzen</button>
+      <button class="action-btn delete-btn" onclick="deleteSelected()">× Löschen</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Legende</div>
+      <div class="legend-item"><div class="legend-swatch swatch-work"></div> Nutzfläche</div>
+      <div class="legend-item"><div class="legend-swatch swatch-blocked"></div> Gesperrte Zone</div>
+      <div class="legend-item"><div class="legend-swatch swatch-custom"></div> Eigenes Format</div>
+    </div>
+  </div>
+
+  <!-- Board -->
+  <div class="board-area">
+    <div class="board-scroll" id="board-scroll">
+      <div class="aufsteller-wrap" id="aufsteller-wrap">
+        <div class="hint-strip top" id="hint-top" style="width: 1023px; height: 60px;">▲ gesperrt (oben 20 cm)</div>
+        <div id="board" style="width: 1023px; height: 1194px;"><div class="ruler-mark major" style="top: 0px;"><span class="ruler-label">20</span></div><div class="ruler-mark" style="top: 85.2857px;"></div><div class="ruler-mark major" style="top: 170.571px;"><span class="ruler-label">40</span></div><div class="ruler-mark" style="top: 255.857px;"></div><div class="ruler-mark major" style="top: 341.143px;"><span class="ruler-label">60</span></div><div class="ruler-mark" style="top: 426.429px;"></div><div class="ruler-mark major" style="top: 511.714px;"><span class="ruler-label">80</span></div><div class="ruler-mark" style="top: 597px;"></div><div class="ruler-mark major" style="top: 682.286px;"><span class="ruler-label">100</span></div><div class="ruler-mark" style="top: 767.571px;"></div><div class="ruler-mark major" style="top: 852.857px;"><span class="ruler-label">120</span></div><div class="ruler-mark" style="top: 938.143px;"></div><div class="ruler-mark major" style="top: 1023.43px;"><span class="ruler-label">140</span></div><div class="ruler-mark" style="top: 1108.71px;"></div><div class="ruler-mark major" style="top: 1194px;"><span class="ruler-label">160</span></div></div>
+        <div class="hint-strip bottom" id="hint-bottom" style="width: 1023px; height: 150px;">▼ gesperrt (unten 80 cm)</div>
+      </div>
+    </div>
+    <div class="dim-labels" id="dim-labels">Nutzfläche: 120 cm × 140 cm  ·  Maßstab 1:12</div>
+  </div>
+
+  <!-- Info -->
+  <div class="info-panel">
+    <div class="panel">
+      <div class="panel-title">Elemente</div>
+      <div id="ph-list"><p class="empty-note">Noch keine Elemente</p></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Aufsteller total dimensions in mm
+const TOTAL_W = 1200;
+const TOTAL_H = 2400;
+const SAFE_TOP = 200;    // 20 cm blocked at top
+const SAFE_BOTTOM = 800; // 80 cm blocked at bottom
+
+// Work zone in mm (relative to top of aufsteller)
+const WORK_TOP = SAFE_TOP;          // 200mm from top
+const WORK_BOTTOM = TOTAL_H - SAFE_BOTTOM; // 1600mm from top
+const WORK_H = WORK_BOTTOM - WORK_TOP;     // 1400mm = 140cm
+
+const DIN = {
+  A0: { w: 841, h: 1189 },
+  A1: { w: 594, h: 841 },
+  A2: { w: 420, h: 594 },
+  A3: { w: 297, h: 420 },
+};
+const DIN_COLORS = {
+  A0: { bg: '#d4e4f7', border: '#2563eb', text: '#1d4ed8' },
+  A1: { bg: '#d1fae5', border: '#059669', text: '#065f46' },
+  A2: { bg: '#fef3c7', border: '#d97706', text: '#92400e' },
+  A3: { bg: '#fce7f3', border: '#db2777', text: '#9d174d' },
+};
+const CUSTOM_COLOR = { bg: '#f3e8ff', border: '#a855f7', text: '#7e22ce' };
+
+let SCALE = 1;
+let HINT_TOP_H = 0;   // px height of top hint strip
+let HINT_BOT_H = 0;   // px height of bottom hint strip
+let landscape = false;
+let placeholders = [];
+let selectedId = null;
+let nextId = 1;
+let savedCustomFormats = [];
+
+const board = document.getElementById('board');
+const hintTop = document.getElementById('hint-top');
+const hintBot = document.getElementById('hint-bottom');
+
+function computeScale() {
+  const scroll = document.getElementById('board-scroll');
+  // Available space minus padding and hint strips (estimate hint as ~6% of total)
+  const availH = scroll.clientHeight - 20;
+  const availW = scroll.clientWidth - 20;
+  // Scale is based on work zone fitting vertically, but total width fitting horizontally
+  const byH = availH / WORK_H;
+  const byW = availW / TOTAL_W;
+  return Math.min(byH, byW);
+}
+
+function initBoard() {
+  SCALE = computeScale();
+
+  const boardW = Math.round(TOTAL_W * SCALE);
+  const boardH = Math.round(WORK_H * SCALE);
+  HINT_TOP_H = Math.round(SAFE_TOP * SCALE * 0.35);   // compressed hint
+  HINT_BOT_H = Math.round(SAFE_BOTTOM * SCALE * 0.22);
+
+  board.style.width = boardW + 'px';
+  board.style.height = boardH + 'px';
+
+  hintTop.style.width = boardW + 'px';
+  hintTop.style.height = HINT_TOP_H + 'px';
+  hintTop.textContent = '▲ gesperrt (oben 20 cm)';
+
+  hintBot.style.width = boardW + 'px';
+  hintBot.style.height = HINT_BOT_H + 'px';
+  hintBot.textContent = '▼ gesperrt (unten 80 cm)';
+
+  // Ruler marks inside work zone (in mm from top of work zone)
+  board.querySelectorAll('.ruler-mark').forEach(e => e.remove());
+  for (let cm = 20; cm <= 160; cm += 10) {
+    const yMm = (cm * 10) - WORK_TOP; // position relative to work zone top
+    if (yMm < 0 || yMm > WORK_H) continue;
+    const mark = document.createElement('div');
+    mark.className = 'ruler-mark' + (cm % 20 === 0 ? ' major' : '');
+    mark.style.top = (yMm * SCALE) + 'px';
+    mark.innerHTML = (cm % 20 === 0) ? `<span class="ruler-label">${cm}</span>` : '';
+    board.appendChild(mark);
+  }
+
+  // Update dim label
+  document.getElementById('dim-labels').textContent =
+    `Nutzfläche: 120 cm × 140 cm  ·  Maßstab 1:${Math.round(1/SCALE*10)}`;
+
+  // Reposition existing placeholders
+  placeholders.forEach(ph => {
+    const el = document.getElementById('ph-' + ph.id);
+    if (el) {
+      const screenPos = mmToScreen(ph.x, ph.y);
+      el.style.left = screenPos.x + 'px';
+      el.style.top = screenPos.y + 'px';
+      el.style.width = (ph.w * SCALE) + 'px';
+      el.style.height = (ph.h * SCALE) + 'px';
+      el.style.transform = ph.rotation ? 'rotate(' + ph.rotation + 'deg)' : '';
+      refreshPhLabel(ph, el);
+    }
+  });
+}
+
+// Convert mm (relative to full aufsteller top) to board px
+function mmToScreen(xMm, yMm) {
+  return {
+    x: xMm * SCALE,
+    y: (yMm - WORK_TOP) * SCALE
+  };
+}
+// Convert board px to mm (relative to full aufsteller top)
+function screenToMm(xPx, yPx) {
+  return {
+    x: xPx / SCALE,
+    y: (yPx / SCALE) + WORK_TOP
+  };
+}
+
+board.addEventListener('click', (e) => { if (e.target === board) selectPlaceholder(null); });
+window.addEventListener('resize', () => initBoard());
+
+function setLandscape(val) {
+  landscape = val;
+  document.getElementById('btn-hoch').classList.toggle('active', !val);
+  document.getElementById('btn-quer').classList.toggle('active', val);
+  updateSizeLabels();
+}
+
+function updateSizeLabels() {
+  Object.keys(DIN).forEach(fmt => {
+    const base = DIN[fmt];
+    const w = landscape ? base.h : base.w;
+    const h = landscape ? base.w : base.h;
+    document.getElementById('sz-' + fmt).textContent =
+      (w/10).toFixed(0) + ' × ' + (h/10).toFixed(0) + ' cm';
+  });
+}
+
+function addDIN(format) {
+  const base = DIN[format];
+  const w = landscape ? base.h : base.w;
+  const h = landscape ? base.w : base.h;
+  // Place near top of work zone
+  const ph = { id: nextId++, label: format, w, h,
+    x: 20, y: WORK_TOP + 20,   // mm from aufsteller top
+    landscape, color: DIN_COLORS[format], rotation: 0 };
+  placeholders.push(ph);
+  renderPlaceholder(ph);
+  selectPlaceholder(ph.id);
+  updateList();
+}
+
+function addCustomFormat() {
+  const name = document.getElementById('custom-name').value.trim();
+  const wCm = parseFloat(document.getElementById('custom-w').value);
+  const hCm = parseFloat(document.getElementById('custom-h').value);
+  const errEl = document.getElementById('custom-error');
+  if (!name || isNaN(wCm) || isNaN(hCm) || wCm <= 0 || hCm <= 0) { errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const wMm = Math.round(wCm * 10), hMm = Math.round(hCm * 10);
+  if (!savedCustomFormats.find(f => f.name === name && f.w === wMm && f.h === hMm)) {
+    savedCustomFormats.push({ name, w: wMm, h: hMm });
+    renderSavedFormats();
+  }
+  const ph = { id: nextId++, label: name, w: wMm, h: hMm,
+    x: 20, y: WORK_TOP + 20, landscape: false, color: CUSTOM_COLOR, rotation: 0 };
+  placeholders.push(ph);
+  renderPlaceholder(ph);
+  selectPlaceholder(ph.id);
+  updateList();
+}
+
+function placeFromSaved(idx) {
+  const fmt = savedCustomFormats[idx];
+  const ph = { id: nextId++, label: fmt.name, w: fmt.w, h: fmt.h,
+    x: 20, y: WORK_TOP + 20, landscape: false, color: CUSTOM_COLOR, rotation: 0 };
+  placeholders.push(ph);
+  renderPlaceholder(ph);
+  selectPlaceholder(ph.id);
+  updateList();
+}
+
+function deleteSavedFormat(idx) {
+  savedCustomFormats.splice(idx, 1);
+  renderSavedFormats();
+}
+
+function renderSavedFormats() {
+  const c = document.getElementById('saved-formats-list');
+  if (!savedCustomFormats.length) { c.innerHTML = ''; return; }
+  c.innerHTML = '<div style="font-size:0.6rem;color:#bbb;margin:5px 0 4px;">Gespeicherte Formate:</div>' +
+    savedCustomFormats.map((f, i) => `
+      <div class="saved-fmt" onclick="placeFromSaved(${i})">
+        <div><div class="saved-fmt-name">${f.name}</div><div class="saved-fmt-size">${(f.w/10).toFixed(0)}×${(f.h/10).toFixed(0)} cm</div></div>
+        <button class="saved-fmt-del" onclick="event.stopPropagation();deleteSavedFormat(${i})">✕</button>
+      </div>`).join('');
+}
+
+function refreshPhLabel(ph, el) {
+  const minDim = Math.min(ph.w, ph.h) * SCALE;
+  const labelSize = Math.max(7, minDim * 0.13);
+  const sizeSize  = Math.max(5, minDim * 0.075);
+  const lbl = el.querySelector('.ph-label');
+  const szl = el.querySelector('.ph-size');
+  if (lbl) lbl.style.fontSize = labelSize + 'px';
+  if (szl) { szl.style.fontSize = sizeSize + 'px'; szl.textContent = (ph.w/10).toFixed(0)+'×'+(ph.h/10).toFixed(0)+' cm'; }
+}
+
+function renderPlaceholder(ph) {
+  const c = ph.color;
+  const el = document.createElement('div');
+  el.className = 'placeholder';
+  el.id = 'ph-' + ph.id;
+  const sp = mmToScreen(ph.x, ph.y);
+  el.style.left = sp.x + 'px';
+  el.style.top  = sp.y + 'px';
+  el.style.width  = (ph.w * SCALE) + 'px';
+  el.style.height = (ph.h * SCALE) + 'px';
+  el.style.background  = c.bg;
+  el.style.borderColor = c.border;
+  el.style.color = c.text;
+  if (ph.rotation) el.style.transform = 'rotate(' + ph.rotation + 'deg)';
+  const minDim = Math.min(ph.w, ph.h) * SCALE;
+  const labelSize = Math.max(7, minDim * 0.13);
+  const sizeSize  = Math.max(5, minDim * 0.075);
+  el.innerHTML = `
+    <svg><line x1="0" y1="0" x2="100%" y2="100%" stroke="${c.border}" stroke-width="1"/>
+         <line x1="100%" y1="0" x2="0" y2="100%" stroke="${c.border}" stroke-width="1"/></svg>
+    <span class="ph-label" style="font-size:${labelSize}px">${ph.label}</span>
+    <span class="ph-size" style="font-size:${sizeSize}px;color:${c.text}">${(ph.w/10).toFixed(0)}×${(ph.h/10).toFixed(0)} cm</span>`;
+  el.addEventListener('mousedown', (e) => startDrag(e, ph.id));
+  el.addEventListener('click',     (e) => { e.stopPropagation(); selectPlaceholder(ph.id); });
+  board.appendChild(el);
+}
+
+function startDrag(e, id) {
+  e.preventDefault();
+  selectPlaceholder(id);
+  const ph = placeholders.find(p => p.id === id);
+  const startMX = e.clientX, startMY = e.clientY;
+  const startXmm = ph.x, startYmm = ph.y;
+
+  function onMove(me) {
+    const dxMm = (me.clientX - startMX) / SCALE;
+    const dyMm = (me.clientY - startMY) / SCALE;
+    // Clamp within work zone (mm relative to aufsteller top)
+    ph.x = Math.max(0, Math.min(TOTAL_W - ph.w, startXmm + dxMm));
+    ph.y = Math.max(WORK_TOP, Math.min(WORK_BOTTOM - ph.h, startYmm + dyMm));
+    const el = document.getElementById('ph-' + id);
+    const sp = mmToScreen(ph.x, ph.y);
+    el.style.left = sp.x + 'px';
+    el.style.top  = sp.y + 'px';
+    updateListItem(ph);
+  }
+  function onUp() { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+function selectPlaceholder(id) {
+  selectedId = id;
+  placeholders.forEach(ph => { const el = document.getElementById('ph-' + ph.id); if (el) el.classList.toggle('selected', ph.id === id); });
+  document.getElementById('selection-panel').style.display = id ? 'block' : 'none';
+  if (id) {
+    const ph = placeholders.find(p => p.id === id);
+    const deg = ph ? (ph.rotation || 0) : 0;
+    document.getElementById('rot-slider').value = deg;
+    document.getElementById('rot-display').textContent = deg + '°';
+  }
+  updateList();
+}
+
+function rotateSelected() {
+  const ph = placeholders.find(p => p.id === selectedId);
+  if (!ph) return;
+  [ph.w, ph.h] = [ph.h, ph.w];
+  ph.landscape = !ph.landscape;
+  const el = document.getElementById('ph-' + ph.id);
+  el.style.width  = (ph.w * SCALE) + 'px';
+  el.style.height = (ph.h * SCALE) + 'px';
+  refreshPhLabel(ph, el);
+  updateList();
+}
+
+function setRotation(deg) {
+  const ph = placeholders.find(p => p.id === selectedId);
+  if (!ph) return;
+  ph.rotation = deg;
+  const el = document.getElementById('ph-' + ph.id);
+  el.style.transform = deg ? 'rotate(' + deg + 'deg)' : '';
+  document.getElementById('rot-display').textContent = deg + '°';
+  document.getElementById('rot-slider').value = deg;
+}
+
+function adjustRotation(delta) {
+  const ph = placeholders.find(p => p.id === selectedId);
+  if (!ph) return;
+  const newDeg = Math.max(-45, Math.min(45, (ph.rotation || 0) + delta));
+  setRotation(newDeg);
+}
+
+function deleteSelected() {
+  if (!selectedId) return;
+  document.getElementById('ph-' + selectedId)?.remove();
+  placeholders = placeholders.filter(p => p.id !== selectedId);
+  selectedId = null;
+  document.getElementById('selection-panel').style.display = 'none';
+  updateList();
+}
+
+function updateList() {
+  const list = document.getElementById('ph-list');
+  if (!placeholders.length) { list.innerHTML = '<p class="empty-note">Noch keine Elemente</p>'; return; }
+  list.innerHTML = placeholders.map(ph => {
+    const c = ph.color, isSel = ph.id === selectedId;
+    // Show y relative to aufsteller top (i.e. actual cm from top)
+    return `<div class="ph-item" style="border-color:${isSel?c.border:'#e5e5e5'};background:${isSel?c.bg:'#fafafa'}" onclick="selectPlaceholder(${ph.id})">
+      <span class="ph-item-title" style="color:${c.text}">${ph.label}</span>
+      <span class="ph-item-orient">${ph.landscape?'quer':'hoch'}</span>
+      <div class="ph-item-coords" id="coords-${ph.id}">x:${Math.round(ph.x/10)} y:${Math.round(ph.y/10)} cm</div>
+    </div>`;
+  }).join('');
+}
+
+function updateListItem(ph) {
+  const el = document.getElementById('coords-' + ph.id);
+  if (el) el.textContent = 'x:'+Math.round(ph.x/10)+' y:'+Math.round(ph.y/10)+' cm';
+}
+
+window.addEventListener('load', () => { updateSizeLabels(); initBoard(); });
+</script>
+
+
+
+<div class="hilfe-overlay" id="hilfe-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="hilfe-box" onclick="event.stopPropagation()">
+    <h2>Aufsteller-Planer &ndash; Hilfe</h2>
+
+    <h3>Was ist dieses Tool?</h3>
+    <p>Der Aufsteller-Planer hilft dabei, Ausstellungstafeln auf einer Stellwand (120 &times; 240 cm) maßstabsgetreu anzuordnen &ndash; bevor irgendetwas gedruckt oder aufgehängt wird. So lässt sich schnell ausprobieren, welche Formate passen und wie die Verteilung wirkt.</p>
+
+    <h3>Die Nutzzone</h3>
+    <p>Nicht die gesamte Fläche des Aufstellers ist gut sichtbar. Die empfohlene <strong>Nutzzone</strong> liegt zwischen 20 cm und 160 cm von oben &ndash; also auf Augenhöhe der Besucher. Dieser Bereich ist weiß dargestellt. Die abgedunkelten Streifen oben und unten zeigen die schwer einsehbaren Zonen.</p>
+
+    <h3>Format hinzufügen</h3>
+    <p>Links stehen vier DIN-Formate zur Auswahl:</p>
+    <ul>
+      <li><span class="format-tag" style="background:#d4e4f7;color:#1d4ed8">A0</span> 84 &times; 119 cm &ndash; sehr großes Format</li>
+      <li><span class="format-tag" style="background:#d1fae5;color:#065f46">A1</span> 59 &times; 84 cm &ndash; großes Format</li>
+      <li><span class="format-tag" style="background:#fef3c7;color:#92400e">A2</span> 42 &times; 59 cm &ndash; mittleres Format</li>
+      <li><span class="format-tag" style="background:#fce7f3;color:#9d174d">A3</span> 30 &times; 42 cm &ndash; kleineres Format</li>
+    </ul>
+    <p>Mit <strong>Hoch / Quer</strong> wählt man die Ausrichtung. Dann einfach auf das Format klicken &ndash; es erscheint auf der Stellwand.</p>
+
+    <h3>Tafeln verschieben &amp; drehen</h3>
+    <p>Eine Tafel anklicken und mit gedrückter Maustaste an die gewünschte Position ziehen. Nach dem Anklicken erscheint links das <strong>Auswahlmenü</strong>: dort kann man die Tafel 90° drehen oder mit dem Schieberegler schräg stellen.</p>
+
+    <h3>Tafel löschen</h3>
+    <p>Tafel anklicken, dann im linken Auswahlmenü auf <strong>× Löschen</strong> klicken &ndash; oder einfach die <strong>Entf</strong>-Taste drücken.</p>
+
+    <h3>Eigene Formate</h3>
+    <p>Für ungewöhnliche Maße (z.B. ein Panoramafoto) unter &bdquo;Eigenes Format&ldquo; einen Namen sowie Breite und Höhe in Zentimetern eingeben und auf <strong>+ Hinzufügen</strong> klicken.</p>
+
+    <h3>Hinweis</h3>
+    <p>Das Tool speichert nichts automatisch. Wer die aktuelle Planung festhalten möchte, macht am besten einen <strong>Screenshot</strong>.</p>
+
+    <button class="hilfe-close" onclick="document.getElementById('hilfe-overlay').style.display='none'">Schließen</button>
+  </div>
+</div>
+</body></html>

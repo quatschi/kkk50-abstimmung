@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KKK 50 · Schwarzes Brett</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:"Source Sans 3",sans-serif;background:#2d1f0e;color:#1a1a2e}
+.header{background:#1a1a2e;color:#f5f0e8;padding:1rem 1.5rem;border-bottom:3px solid #c9a84c;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;flex-shrink:0}
+.header h1{font-family:"Playfair Display",serif;font-size:1.2rem;line-height:1.3}
+.header h1 span{display:block;font-size:0.7rem;color:#c9a84c;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.2rem}
+.header-right{display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap}
+.voter-badge{font-size:0.75rem;color:#c9a84c}
+.header a{font-size:0.72rem;color:#c9a84c;text-decoration:none;border:1px solid #c9a84c;border-radius:4px;padding:0.25rem 0.7rem}
+.header a:hover{background:#c9a84c;color:#1a1a2e}
+.brett-wrap{height:calc(100vh - 70px);display:flex;flex-direction:column;overflow:hidden}
+.toolbar{background:#1a1a1a;padding:0.6rem 1.2rem;display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;border-bottom:1px solid #3a2a10;flex-shrink:0}
+.toolbar-label{font-size:0.72rem;color:#c9a84c;letter-spacing:0.08em;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;gap:0.3rem;padding:0.45rem 1rem;font-family:"Source Sans 3",sans-serif;font-size:0.8rem;font-weight:600;border:none;border-radius:4px;cursor:pointer;transition:all 0.18s}
+.btn-gold{background:#c9a84c;color:#1a1a2e}.btn-gold:hover{background:#b8962e}
+.btn-dark{background:#333;color:#f5f0e8;border:1px solid #555}.btn-dark:hover{background:#444}
+.btn:disabled{opacity:0.45;cursor:not-allowed}
+.filter-btns{display:flex;gap:0.4rem;flex-wrap:wrap}
+.filter-btn{padding:0.3rem 0.8rem;font-size:0.72rem;font-family:"Source Sans 3",sans-serif;border-radius:99px;border:1px solid #555;background:none;color:#ccc;cursor:pointer;transition:all 0.15s}
+.filter-btn.active{background:#c9a84c;color:#1a1a2e;border-color:#c9a84c;font-weight:600}
+.brett{flex:1;overflow:auto;padding:1.5rem;position:relative;background:
+  repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px),
+  repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px),
+  #2d1f0e}
+.zettel{position:absolute;width:165px;min-height:120px;padding:0.7rem;border-radius:2px;cursor:move;box-shadow:3px 4px 8px rgba(0,0,0,0.4);transition:box-shadow 0.15s,transform 0.15s;user-select:none;display:flex;flex-direction:column;gap:0.3rem}
+.zettel:hover{box-shadow:5px 6px 14px rgba(0,0,0,0.5);transform:translateY(-2px)}
+.zettel.dragging{opacity:0.7;z-index:1000}
+.zettel-autor{font-size:0.6rem;font-weight:700;opacity:0.7;letter-spacing:0.05em;text-transform:uppercase}
+.zettel-text{font-family:"Caveat",cursive;font-size:1rem;line-height:1.4;flex:1;word-break:break-word;color:#1a1a1a}
+.zettel-zeit{font-size:0.55rem;opacity:0.5}
+.zettel-kat{display:inline-block;background:rgba(0,0,0,0.15);border-radius:99px;font-size:0.6rem;font-weight:700;padding:1px 7px;color:#333;letter-spacing:0.05em;cursor:pointer;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zettel-kat.leer{background:rgba(0,0,0,0.07);color:#888;font-style:italic}
+.zettel-actions{display:flex;gap:3px;margin-top:4px;opacity:0;transition:opacity 0.15s;flex-wrap:wrap}
+.zettel:hover .zettel-actions{opacity:1}
+.zettel-btn{font-size:0.58rem;padding:2px 5px;border-radius:2px;border:none;cursor:pointer;font-family:"Source Sans 3",sans-serif;font-weight:600;white-space:nowrap}
+.zb-erledigt{background:rgba(0,0,0,0.15);color:#333}
+.zb-loeschen{background:rgba(192,57,43,0.2);color:#c0392b}
+.erledigt-zone{flex-shrink:0;background:rgba(0,0,0,0.35);border-top:2px dashed rgba(255,255,255,0.15);padding:0.8rem 1.5rem;min-height:70px}
+.erledigt-label{font-size:0.65rem;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.4rem}
+.erledigt-zettel{display:flex;flex-wrap:wrap;gap:0.5rem}
+.erledigt-item{background:rgba(255,255,255,0.06);border-radius:4px;padding:0.35rem 0.7rem;font-size:0.75rem;color:#777;display:flex;align-items:center;gap:0.5rem;font-family:"Caveat",cursive}
+.erledigt-item button{background:none;border:none;color:#999;cursor:pointer;font-size:0.75rem;padding:0 2px}
+.erledigt-item button:hover{color:#c0392b}
+/* Kategorie-Popup */
+.kat-popup{position:absolute;z-index:500;background:#fff;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:0.8rem;width:200px}
+.kat-popup h4{font-size:0.75rem;color:#1a1a2e;margin-bottom:0.5rem;font-weight:600}
+.kat-popup input{width:100%;border:1.5px solid #ddd;border-radius:4px;padding:0.4rem 0.6rem;font-size:0.82rem;font-family:"Source Sans 3",sans-serif;outline:none;margin-bottom:0.5rem}
+.kat-popup input:focus{border-color:#c9a84c}
+.kat-vorschlaege{display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem}
+.kat-chip{padding:2px 8px;border-radius:99px;border:1px solid #ddd;background:#f5f5f5;font-size:0.68rem;cursor:pointer;color:#444}
+.kat-chip:hover{background:#c9a84c;color:#1a1a2e;border-color:#c9a84c}
+.kat-popup-btns{display:flex;gap:0.4rem;justify-content:flex-end}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:400;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:#fff;border-radius:8px;padding:1.5rem;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.modal h3{font-family:"Playfair Display",serif;font-size:1.1rem;margin-bottom:1rem;color:#1a1a2e}
+.modal textarea{width:100%;border:1.5px solid #ddd;border-radius:4px;padding:0.6rem 0.8rem;font-family:"Caveat",cursive;font-size:1.1rem;color:#1a1a2e;resize:vertical;min-height:100px;outline:none;transition:border-color 0.2s}
+.modal textarea:focus{border-color:#c9a84c}
+.modal label{font-size:0.75rem;color:#555;display:block;margin:0.8rem 0 0.3rem}
+.farb-auswahl{display:flex;gap:0.4rem;flex-wrap:wrap}
+.farb-btn{width:28px;height:28px;border-radius:4px;border:2px solid transparent;cursor:pointer;transition:border-color 0.15s}
+.farb-btn.selected{border-color:#1a1a2e}
+.modal-btns{display:flex;gap:0.6rem;margin-top:1rem;justify-content:flex-end}
+.z-gelb{background:#fef08a}.z-blau{background:#bfdbfe}.z-gruen{background:#bbf7d0}
+.z-rosa{background:#fecdd3}.z-orange{background:#fed7aa}.z-lila{background:#e9d5ff}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a2e;color:#f5f0e8;padding:0.7rem 1.2rem;border-radius:6px;font-size:0.8rem;z-index:600;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+.start-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:2rem;text-align:center;gap:1rem;background:#2d1f0e}
+.start-screen h2{font-family:"Playfair Display",serif;font-size:1.8rem;color:#f5f0e8}
+.start-screen p{color:#c9a84c;max-width:380px;line-height:1.7;font-size:0.9rem}
+input[type=text]{font-family:"Source Sans 3",sans-serif;border:1.5px solid #c9a84c;border-radius:4px;padding:0.55rem 0.85rem;font-size:0.9rem;width:100%;max-width:280px;background:#1a1a1a;color:#f5f0e8;outline:none}
+</style>
+</head>
+<body>
+
+<div id="screen-start" class="start-screen">
+  <h2>Schwarzes Brett</h2>
+  <p>Pinne Gedanken, Fragen und Ideen an — ohne Kategorien oder Pflichtfelder. Sortieren kann man später.</p>
+  <div style="width:100%;max-width:280px;text-align:left">
+    <label style="font-size:0.75rem;color:#c9a84c;display:block;margin-bottom:0.3rem">Dein Name</label>
+    <input type="text" id="name-input" placeholder="z.B. Harry" onkeydown="if(event.key==='Enter')startApp()">
+  </div>
+  <button class="btn btn-gold" onclick="startApp()">Zum Brett</button>
+  <p id="name-error" style="color:#c0392b;font-size:0.8rem;display:none">Bitte gib deinen Namen ein.</p>
+</div>
+
+<div id="screen-app" style="display:none;flex-direction:column;height:100vh">
+  <div class="header">
+    <h1><span>Burghauser Kleinkunst-Kooperative · 50 Jahre</span>Schwarzes Brett</h1>
+    <div class="header-right">
+      <span class="voter-badge"><strong id="user-display"></strong></span>
+      <a href="index.html">← Startseite</a>
+    </div>
+  </div>
+  <div class="brett-wrap">
+    <div class="toolbar">
+      <button class="btn btn-gold" onclick="zeigeModal()">+ Neuer Zettel</button>
+      <button class="btn btn-dark" onclick="ladeAlles()">↻ Aktualisieren</button>
+      <div style="width:1px;height:24px;background:#444;margin:0 0.2rem"></div>
+      <span class="toolbar-label">Filter:</span>
+      <div class="filter-btns" id="filter-btns"></div>
+    </div>
+    <div class="brett" id="brett" ondragover="event.preventDefault()" ondrop="dropOnBrett(event)"></div>
+    <div class="erledigt-zone">
+      <div class="erledigt-label">✓ Erledigt</div>
+      <div class="erledigt-zettel" id="erledigt-liste"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)schliesseModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Neuer Zettel</h3>
+    <textarea id="zettel-text" placeholder="Was liegt dir auf dem Herzen?"></textarea>
+    <label>Farbe</label>
+    <div class="farb-auswahl">
+      <div class="farb-btn z-gelb selected" onclick="wahleFarbe('z-gelb',this)"></div>
+      <div class="farb-btn z-blau" onclick="wahleFarbe('z-blau',this)"></div>
+      <div class="farb-btn z-gruen" onclick="wahleFarbe('z-gruen',this)"></div>
+      <div class="farb-btn z-rosa" onclick="wahleFarbe('z-rosa',this)"></div>
+      <div class="farb-btn z-orange" onclick="wahleFarbe('z-orange',this)"></div>
+      <div class="farb-btn z-lila" onclick="wahleFarbe('z-lila',this)"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-dark" onclick="schliesseModal()">Abbrechen</button>
+      <button class="btn btn-gold" onclick="submitZettel()">Anpinnen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kategorie-Popup -->
+<div id="kat-popup" class="kat-popup" style="display:none">
+  <h4>Kategorie</h4>
+  <input type="text" id="kat-input" placeholder="z.B. Vorbereitung" onkeydown="if(event.key==='Enter')speichereKat()">
+  <div class="kat-vorschlaege" id="kat-vorschlaege"></div>
+  <div class="kat-popup-btns">
+    <button class="btn btn-dark" style="padding:0.3rem 0.7rem;font-size:0.72rem" onclick="schliesseKatPopup()">Abbrechen</button>
+    <button class="btn btn-gold" style="padding:0.3rem 0.7rem;font-size:0.72rem" onclick="speichereKat()">Speichern</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const JSONBIN_KEY = "$2a$10$AoTudxJ71D33MHMyNntzaO.7nmmu0VKequ8L9/C4gKnGKIVPEwmXS";
+const JSONBIN_ID  = "6a2280def5f4af5e29bc8a2f";
+const API_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_ID;
+
+let userName = "";
+let gewaehleFarbe = "z-gelb";
+let alleZettel = [];
+let aktFilter = "alle";
+let dragId = null, dragOffX = 0, dragOffY = 0;
+let aktKatZettelId = null;
+
+function toast(msg, color) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = color || '#1a1a2e';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function startApp() {
+  const inp = document.getElementById('name-input');
+  if (!inp.value.trim()) { document.getElementById('name-error').style.display='block'; return; }
+  userName = inp.value.trim();
+  document.getElementById('user-display').textContent = userName;
+  document.getElementById('screen-start').style.display = 'none';
+  const app = document.getElementById('screen-app');
+  app.style.display = 'flex';
+  ladeAlles();
+  // Popup schließen bei Klick außerhalb
+  document.addEventListener('click', e => {
+    const p = document.getElementById('kat-popup');
+    if (p.style.display !== 'none' && !p.contains(e.target) && !e.target.classList.contains('zettel-kat')) {
+      schliesseKatPopup();
+    }
+  });
+}
+
+function zeigeModal() { document.getElementById('zettel-text').value=''; document.getElementById('modal').style.display='flex'; setTimeout(()=>document.getElementById('zettel-text').focus(),50); }
+function schliesseModal() { document.getElementById('modal').style.display='none'; }
+function wahleFarbe(f, el) { gewaehleFarbe=f; document.querySelectorAll('.farb-btn').forEach(b=>b.classList.remove('selected')); el.classList.add('selected'); }
+
+// Alle vorhandenen Kategorien ermitteln
+function alleKategorien() {
+  const kats = alleZettel.map(z=>z.kategorie).filter(k=>k&&k.trim());
+  return [...new Set(kats)].sort();
+}
+
+function updateFilterBtns() {
+  const container = document.getElementById('filter-btns');
+  container.innerHTML = '';
+  const filter = ['alle', 'offen', 'erledigt', ...alleKategorien()];
+  filter.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (f === aktFilter ? ' active' : '');
+    btn.textContent = f === 'alle' ? 'Alle' : f === 'offen' ? 'Offen' : f === 'erledigt' ? 'Erledigt' : f;
+    btn.onclick = () => { aktFilter = f; updateFilterBtns(); renderBrett(); };
+    container.appendChild(btn);
+  });
+}
+
+async function ladeAlles() {
+  try {
+    const res = await fetch(API_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY}});
+    const data = await res.json();
+    alleZettel = (data.record||{}).zettel||[];
+    updateFilterBtns();
+    renderBrett();
+  } catch(e) { toast('Fehler beim Laden','#c0392b'); }
+}
+
+async function speichern() {
+  const res = await fetch(API_URL, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
+    body: JSON.stringify({zettel:alleZettel})
+  });
+  if (!res.ok) throw new Error('HTTP '+res.status);
+}
+
+async function submitZettel() {
+  const text = document.getElementById('zettel-text').value.trim();
+  if (!text) { toast('Bitte Text eingeben','#c0392b'); return; }
+  const brett = document.getElementById('brett');
+  const bw = brett.scrollWidth||800, bh = brett.scrollHeight||500;
+  const x = 40 + Math.random()*(Math.min(bw,900)-220);
+  const y = 40 + Math.random()*(Math.min(bh,500)-160);
+  const z = {
+    id: Date.now()+'_'+Math.random().toString(36).slice(2,5),
+    autor: userName, text, farbe: gewaehleFarbe,
+    x: Math.round(x), y: Math.round(y),
+    erledigt: false, kategorie: '',
+    timestamp: new Date().toISOString()
+  };
+  try {
+    const res = await fetch(API_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY}});
+    const data = await res.json();
+    alleZettel = (data.record||{}).zettel||[];
+    alleZettel.push(z);
+    await speichern();
+    schliesseModal();
+    updateFilterBtns();
+    renderBrett();
+    toast('Zettel angeheftet ✓','#2a7a2a');
+  } catch(e) { toast('Fehler: '+e.message,'#c0392b'); }
+}
+
+function renderBrett() {
+  const brett = document.getElementById('brett');
+  const erledigtListe = document.getElementById('erledigt-liste');
+  brett.innerHTML = '';
+  erledigtListe.innerHTML = '';
+
+  let sichtbare = alleZettel;
+  if (aktFilter === 'offen') sichtbare = alleZettel.filter(z=>!z.erledigt);
+  else if (aktFilter === 'erledigt') sichtbare = alleZettel.filter(z=>z.erledigt);
+  else if (aktFilter !== 'alle') sichtbare = alleZettel.filter(z=>z.kategorie===aktFilter);
+
+  const offene = sichtbare.filter(z=>!z.erledigt);
+  const erledigte = sichtbare.filter(z=>z.erledigt);
+
+  offene.forEach(z => brett.appendChild(erstelleZettel(z)));
+
+  erledigte.forEach(z => {
+    const dt = new Date(z.timestamp).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const item = document.createElement('div');
+    item.className = 'erledigt-item';
+    item.innerHTML = escHtml(z.text.substring(0,40))+(z.text.length>40?'…':'')+
+      (z.kategorie?` <span style="opacity:0.6;font-size:0.65rem">[${escHtml(z.kategorie)}]</span>`:'')+
+      ` <span style="font-size:0.6rem;opacity:0.5">${z.autor} · ${dt}</span>`+
+      `<button onclick="toggleErledigt('${z.id}')" title="Wieder öffnen">↩</button>`+
+      `<button onclick="loescheZettel('${z.id}')" title="Löschen">×</button>`;
+    erledigtListe.appendChild(item);
+  });
+
+  const maxX = Math.max(800,...offene.map(z=>z.x+200));
+  const maxY = Math.max(500,...offene.map(z=>z.y+170));
+  brett.style.minWidth = maxX+'px';
+  brett.style.minHeight = maxY+'px';
+}
+
+function erstelleZettel(z) {
+  const el = document.createElement('div');
+  el.className = 'zettel '+z.farbe;
+  el.id = 'zettel-'+z.id;
+  el.style.left = z.x+'px';
+  el.style.top = z.y+'px';
+  el.draggable = true;
+
+  const dt = new Date(z.timestamp).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+  const katEl = document.createElement('span');
+  katEl.className = 'zettel-kat' + (z.kategorie?'':' leer');
+  katEl.textContent = z.kategorie || '+ Kategorie';
+  katEl.title = 'Kategorie bearbeiten';
+  katEl.onclick = e => { e.stopPropagation(); zeigeKatPopup(z.id, katEl); };
+
+  el.innerHTML =
+    `<div class="zettel-autor">${escHtml(z.autor)}</div>`+
+    `<div class="zettel-text">${escHtml(z.text)}</div>`+
+    `<div class="zettel-zeit">${dt}</div>`+
+    `<div class="zettel-actions">`+
+      `<button class="zettel-btn zb-erledigt" onclick="toggleErledigt('${z.id}')">✓ Erledigt</button>`+
+      `<button class="zettel-btn zb-loeschen" onclick="loescheZettel('${z.id}')">× Löschen</button>`+
+    `</div>`;
+
+  // Kategorie-Tag nach zettel-text einfügen
+  const textEl = el.querySelector('.zettel-text');
+  textEl.after(katEl);
+
+  el.addEventListener('dragstart', e => {
+    dragId = z.id;
+    const rect = el.getBoundingClientRect();
+    const bRect = document.getElementById('brett').getBoundingClientRect();
+    dragOffX = e.clientX - rect.left;
+    dragOffY = e.clientY - rect.top;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  return el;
+}
+
+function dropOnBrett(e) {
+  e.preventDefault();
+  if (!dragId) return;
+  const brett = document.getElementById('brett');
+  const rect = brett.getBoundingClientRect();
+  const x = Math.max(0, e.clientX - rect.left + brett.scrollLeft - dragOffX);
+  const y = Math.max(0, e.clientY - rect.top + brett.scrollTop - dragOffY);
+  const z = alleZettel.find(z=>z.id===dragId);
+  if (z) { z.x=Math.round(x); z.y=Math.round(y); speichern().then(()=>renderBrett()).catch(()=>toast('Fehler','#c0392b')); }
+  dragId = null;
+}
+
+// Kategorie-Popup
+function zeigeKatPopup(id, anchorEl) {
+  aktKatZettelId = id;
+  const z = alleZettel.find(z=>z.id===id);
+  const popup = document.getElementById('kat-popup');
+  const inp = document.getElementById('kat-input');
+  inp.value = z?.kategorie || '';
+
+  // Vorschläge aus vorhandenen Kategorien
+  const kats = alleKategorien();
+  const vs = document.getElementById('kat-vorschlaege');
+  vs.innerHTML = '';
+  if (kats.length) {
+    kats.forEach(k => {
+      const chip = document.createElement('span');
+      chip.className = 'kat-chip';
+      chip.textContent = k;
+      chip.onclick = () => { inp.value = k; };
+      vs.appendChild(chip);
+    });
+  }
+
+  // Position neben dem Zettel
+  const rect = anchorEl.getBoundingClientRect();
+  popup.style.display = 'block';
+  popup.style.left = Math.min(rect.left, window.innerWidth-220)+'px';
+  popup.style.top = (rect.bottom+6)+'px';
+  inp.focus();
+}
+
+function schliesseKatPopup() {
+  document.getElementById('kat-popup').style.display = 'none';
+  aktKatZettelId = null;
+}
+
+async function speichereKat() {
+  if (!aktKatZettelId) return;
+  const kat = document.getElementById('kat-input').value.trim();
+  try {
+    const res = await fetch(API_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY}});
+    const data = await res.json();
+    alleZettel = (data.record||{}).zettel||[];
+    const z = alleZettel.find(z=>z.id===aktKatZettelId);
+    if (z) z.kategorie = kat;
+    await speichern();
+    schliesseKatPopup();
+    updateFilterBtns();
+    renderBrett();
+    toast(kat ? `Kategorie „${kat}" gespeichert ✓`:'Kategorie entfernt','#2a7a2a');
+  } catch(e) { toast('Fehler: '+e.message,'#c0392b'); }
+}
+
+async function toggleErledigt(id) {
+  try {
+    const res = await fetch(API_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY}});
+    const data = await res.json();
+    alleZettel = (data.record||{}).zettel||[];
+    const z = alleZettel.find(z=>z.id===id);
+    if (z) z.erledigt = !z.erledigt;
+    await speichern(); updateFilterBtns(); renderBrett();
+  } catch(e) { toast('Fehler','#c0392b'); }
+}
+
+async function loescheZettel(id) {
+  if (!confirm('Diesen Zettel wirklich löschen?')) return;
+  try {
+    const res = await fetch(API_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY}});
+    const data = await res.json();
+    alleZettel = (data.record||{}).zettel||[];
+    alleZettel = alleZettel.filter(z=>z.id!==id);
+    await speichern(); updateFilterBtns(); renderBrett();
+    toast('Zettel gelöscht','#c0392b');
+  } catch(e) { toast('Fehler','#c0392b'); }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>

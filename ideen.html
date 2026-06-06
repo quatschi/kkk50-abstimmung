@@ -73,12 +73,16 @@ input[type=text]:focus{border-color:#c9a84c}
     <button class="btn btn-gold" onclick="startApp()">Starten</button>
   </div>
   <p id="name-error" style="color:#c0392b;font-size:0.8rem;display:none">Bitte gib deinen Namen ein.</p>
+  <a href="index.html" style="font-size:0.78rem;color:#888;text-decoration:none;margin-top:0.5rem">← Zurück zur Startseite</a>
 </div>
 
 <div id="screen-app" class="app" style="display:none">
   <div class="header">
     <h1><span>Burghauser Kleinkunst-Kooperative · 50 Jahre</span>Inhaltssammlung für die Ausstellung</h1>
-    <div class="voter-badge">Angemeldet als: <strong id="user-display"></strong></div>
+    <div style="display:flex;align-items:center;gap:0.8rem">
+      <div class="voter-badge">Angemeldet als: <strong id="user-display"></strong></div>
+      <a href="index.html" style="font-size:0.72rem;color:#c9a84c;text-decoration:none;border:1px solid #c9a84c;border-radius:4px;padding:0.25rem 0.7rem;white-space:nowrap">← Startseite</a>
+    </div>
   </div>
   <div class="main">
     <nav class="sidebar">

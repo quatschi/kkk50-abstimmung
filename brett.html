@@ -233,9 +233,11 @@ async function submitZettel() {
   const text = document.getElementById('zettel-text').value.trim();
   if (!text) { toast('Bitte Text eingeben','#c0392b'); return; }
   const brett = document.getElementById('brett');
-  const bw = brett.scrollWidth||800, bh = brett.scrollHeight||500;
-  const x = 40 + Math.random()*(Math.min(bw,900)-220);
-  const y = 40 + Math.random()*(Math.min(bh,500)-160);
+  // Sichtbaren Bereich nutzen, nicht die Gesamtgröße
+  const vw = Math.min(brett.clientWidth || window.innerWidth, 800);
+  const vh = Math.min(brett.clientHeight || window.innerHeight, 500);
+  const x = 20 + Math.random() * Math.max(50, vw - 200);
+  const y = 20 + Math.random() * Math.max(50, vh - 160);
   const z = {
     id: Date.now()+'_'+Math.random().toString(36).slice(2,5),
     autor: userName, text, farbe: gewaehleFarbe,
@@ -284,10 +286,12 @@ function renderBrett() {
     erledigtListe.appendChild(item);
   });
 
-  const maxX = Math.max(800,...offene.map(z=>z.x+200));
-  const maxY = Math.max(500,...offene.map(z=>z.y+170));
-  brett.style.minWidth = maxX+'px';
-  brett.style.minHeight = maxY+'px';
+  if (offene.length) {
+    const maxX = Math.max(offene[0] ? brett.clientWidth : 400, ...offene.map(z=>z.x+200));
+    const maxY = Math.max(offene[0] ? brett.clientHeight : 300, ...offene.map(z=>z.y+170));
+    brett.style.minWidth = maxX+'px';
+    brett.style.minHeight = maxY+'px';
+  }
 }
 
 function erstelleZettel(z) {
